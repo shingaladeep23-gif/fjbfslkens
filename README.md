@@ -4,6 +4,8 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 
 > Built with help from AI tools (Claude Code).
 
+**Live app: https://fjbfslkens.vercel.app**
+
 ## Layout
 
 | Path | What it is |
@@ -19,6 +21,7 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
 | `backend/tests/` | pytest suite |
 | `.github/workflows/tests.yml` | GitHub Actions on every push: pytest and Playwright, plus a job that builds the Docker images and checks the API through nginx |
+| `api/index.py`, `vercel.json`, `requirements.txt`, `.python-version` | Vercel deployment: the same FastAPI app as a Python function, the Vite site, and `/api` routed to the function on one domain |
 | `docker-compose.yml` | Runs the whole app in two containers: `docker compose up --build` |
 | `backend/Dockerfile`, `backend/Dockerfile.dockerignore` | API image: Python slim, the app code and the January data, uvicorn with 4 workers |
 | `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/.dockerignore` | Page image: built with Node, served by nginx, which passes `/api` on to the API |
@@ -71,6 +74,16 @@ npm run dev
 
 Open http://localhost:5173. In development, Vite passes every `/api` request on to the API on port 8000 (see `frontend/vite.config.js`), so the browser sees one site and no CORS setup is needed.
 
+## Deployment (Vercel)
+
+The live app runs on Vercel, built from this repo on every push to `main`:
+
+- `vercel.json` builds `frontend/` with Vite into a static site and rewrites `/api/*` to one Python function, `api/index.py`, which imports the same FastAPI app. Page and API share one domain, so there is no CORS.
+- The function's packages are listed in the root `requirements.txt` with the same pinned versions as `backend/requirements.txt` (a test checks they match). The January CSVs in `data/` are bundled with the function.
+- The function runs in Vercel's `iad1` region (US East). A cold start takes about 2.5 s; warm answers take about 0.4–0.8 s from Europe or Asia, most of that the network distance. Results are cached per function instance.
+
+To deploy your own copy: `npx vercel login`, then `npx vercel deploy --prod` from a clean clone of the repo.
+
 ## Running the tests
 
 Back-end unit tests:
@@ -95,6 +108,7 @@ To run the same browser tests against an app that is already running (for exampl
 ```
 cd frontend
 BASE_URL=http://localhost:8080 npx playwright test
+BASE_URL=https://fjbfslkens.vercel.app npx playwright test   # the live site
 ```
 
 Both sets run on every push in GitHub Actions (`.github/workflows/tests.yml`), along with a job that builds the Docker images and checks the API through nginx.
