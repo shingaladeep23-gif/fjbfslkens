@@ -12,6 +12,7 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `data/actuals.csv` | FUELHH wind outturn, half-hourly, 1 Jan – 3 Feb 2026 |
 | `data/forecasts.csv` | WINDFOR forecasts published 30 Dec 2025 – 31 Jan 2026 |
 | `backend/app/selection.py` | The rule that picks the forecast available at decision time |
+| `backend/app/metrics.py` | Accuracy metrics (error = forecast − actual) and breakdowns by lead time, hour and generation level |
 | `backend/tests/` | pytest suite |
 
 ## Running the tests
@@ -28,6 +29,8 @@ python -m pytest
 - **Forecast available at decision time.** For target time T and lead time H, use the forecast with the latest `publishTime ≤ T − H` among forecasts for T. If none exists, the slot is a gap. A gap is never filled with a later forecast, because that would use information the buyer did not have.
 - **Default lead time: 24 h.** The GB day-ahead auction closes around 11:00 the day before delivery, so the next day's half-hours sit roughly 13–37 h after the decision. 24 h is the middle of that range. The slider covers 1–48 h.
 - **Hourly forecast vs half-hourly actuals.** WINDFOR is hourly and FUELHH is half-hourly. Accuracy metrics compare each forecast only with the actual at the same hour (e.g. the 14:00 forecast with the 14:00–14:30 actual). The :30 actuals are left out of the metrics rather than compared with an interpolated forecast nobody published. The chart still draws every half-hourly actual and draws the forecast as hourly points joined by a line.
+- **Error sign.** Error = forecast − actual, so a positive value means the forecast was higher. The average is reported as "mean forecast minus actual", not as bias, until the coverage and curtailment question is checked.
+- **Gaps in metrics.** Hours with no forecast are counted and reported, but left out of averages.
 - **Past hours in a publish.** Each WINDFOR publish restates a few hours before its publish time. Those rows are dropped; they are not forecasts.
 
 ## Data notes
