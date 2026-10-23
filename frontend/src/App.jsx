@@ -7,6 +7,19 @@ import SeriesChart from "./components/SeriesChart.jsx";
 
 const FIRST_DAY = "2026-01-01";
 const LAST_DAY = "2026-02-03";
+const DATE_RANGE_MESSAGE = "Choose dates between 1 Jan 2026 and 3 Feb 2026.";
+
+// A message if a date can't be sent to the API (empty, half-typed or outside the data), else null.
+// Date inputs give "" for an empty or half-typed date, and YYYY-MM-DD strings sort like dates.
+// Start after end is left to the API, which explains that case itself.
+function dateProblem(start, end) {
+  for (const day of [start, end]) {
+    if (day === "" || day < FIRST_DAY || day > LAST_DAY) {
+      return DATE_RANGE_MESSAGE;
+    }
+  }
+  return null;
+}
 
 // Get JSON from our API. If the API says no (e.g. a 400), throw its own message so we can show it.
 async function fetchJson(url) {
@@ -40,6 +53,11 @@ function useApi(url, changeCount) {
   const lastGoodUrl = useRef(null);
 
   useEffect(() => {
+    // No URL means the inputs are not valid: ask the API nothing.
+    if (url === null) {
+      setLoading(false);
+      return;
+    }
     // Same URL as the answer already on screen: nothing to fetch (e.g. by-lead when the slider moves).
     if (url === lastGoodUrl.current) {
       return;
@@ -90,13 +108,18 @@ export default function App() {
     setChangeCount(changeCount + 1);
   }
 
+  const problem = dateProblem(start, end);
+  // The URL to ask the API for, or null (ask nothing) while the dates are not valid.
+  function urlFor(path, query) {
+    return problem ? null : `${path}?${query}`;
+  }
   const range = `start=${start}&end=${end}`;
   const rangeAndLead = `${range}&lead_hours=${leadHours}`;
-  const series = useApi(`/api/series?${rangeAndLead}`, changeCount);
-  const metrics = useApi(`/api/metrics?${rangeAndLead}`, changeCount);
-  const byLead = useApi(`/api/metrics/by-lead?${range}`, changeCount); // does not depend on the slider
-  const byHour = useApi(`/api/metrics/by-hour?${rangeAndLead}`, changeCount);
-  const byLevel = useApi(`/api/metrics/by-level?${rangeAndLead}`, changeCount);
+  const series = useApi(urlFor("/api/series", rangeAndLead), changeCount);
+  const metrics = useApi(urlFor("/api/metrics", rangeAndLead), changeCount);
+  const byLead = useApi(urlFor("/api/metrics/by-lead", range), changeCount); // does not depend on the slider
+  const byHour = useApi(urlFor("/api/metrics/by-hour", rangeAndLead), changeCount);
+  const byLevel = useApi(urlFor("/api/metrics/by-level", rangeAndLead), changeCount);
 
   const requests = [series, metrics, byLead, byHour, byLevel];
   const loading = requests.some((request) => request.loading);
@@ -127,9 +150,10 @@ export default function App() {
       />
 
       <p className="status" aria-live="polite">{loading ? "Loading…" : ""}</p>
-      {nothingWorked && <p className="error">{failed.error}</p>}
+      {problem && <p className="error">{problem}</p>}
+      {!problem && nothingWorked && <p className="error">{failed.error}</p>}
 
-      {!nothingWorked && (
+      {!problem && !nothingWorked && (
         <>
           <Part requests={[metrics]}>
             <HeadlineCards metrics={metrics.data} />
