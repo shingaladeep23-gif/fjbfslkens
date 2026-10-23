@@ -100,8 +100,10 @@ export default function App() {
 
   const requests = [series, metrics, byLead, byHour, byLevel];
   const loading = requests.some((request) => request.loading);
-  // If every request failed (e.g. the server is down, or start is after end), say it once for the page.
-  const allFailed = requests.every((request) => request.error);
+  // If nothing worked for the current inputs (each request failed or is still waiting, e.g. the server
+  // is down or start is after end), say it once for the page instead of once per part.
+  const failed = requests.find((request) => request.error);
+  const nothingWorked = failed && requests.every((request) => request.error || request.loading);
 
   return (
     <main>
@@ -125,9 +127,9 @@ export default function App() {
       />
 
       <p className="status" aria-live="polite">{loading ? "Loading…" : ""}</p>
-      {allFailed && <p className="error">{series.error}</p>}
+      {nothingWorked && <p className="error">{failed.error}</p>}
 
-      {!allFailed && (
+      {!nothingWorked && (
         <>
           <Part requests={[metrics]}>
             <HeadlineCards metrics={metrics.data} />
