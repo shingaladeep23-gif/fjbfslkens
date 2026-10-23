@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from app.selection import select_forecasts
 
@@ -97,11 +96,11 @@ def test_input_order_does_not_matter():
 SNAPSHOT = Path(__file__).resolve().parents[2] / "data" / "forecasts.csv"
 
 
-@pytest.mark.skipif(not SNAPSHOT.exists(), reason="no data snapshot")
-@pytest.mark.parametrize("lead", [1, 24, 48])
-def test_snapshot_never_leaks_future_forecasts(lead):
+# On the real data, no selected forecast may be published after the decision time.
+def test_snapshot_never_leaks_future_forecasts():
     df = pd.read_csv(SNAPSHOT, parse_dates=["publishTime", "startTime"])
     targets = pd.date_range("2026-01-02", "2026-01-31 23:00", freq="h", tz="UTC")
-    out = select_forecasts(df, targets, lead).dropna()
-    assert len(out) > 0
-    assert (out.publishTime <= out.index - pd.Timedelta(hours=lead)).all()
+    for lead in [1, 24, 48]:
+        out = select_forecasts(df, targets, lead).dropna()
+        assert len(out) > 0
+        assert (out["publishTime"] <= out.index - pd.Timedelta(hours=lead)).all()
