@@ -1,5 +1,6 @@
 """FastAPI back end: actual wind, the forecast available at decision time, and accuracy metrics."""
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -138,16 +139,40 @@ def forecasts_to_json(start, end, lead_hours):
     return rows
 
 
-# Chart data: half-hourly actuals plus the hourly forecast a buyer had lead_hours before.
-@app.get("/api/series")
-def get_series(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
-    check_dates(start, end)
-    check_lead_hours(lead_hours)
+# The three slow answers below are cached. The data never changes while the server runs,
+# so the same inputs always give the same answer: compute it once, then reuse it.
+# Callers only send the result as JSON and never change it, so sharing it is safe.
+
+# Chart data for /api/series (about 0.2 s for a month: building ~2,200 JSON rows).
+@lru_cache(maxsize=128)
+def series_json(start, end, lead_hours):
     return {
         "lead_hours": lead_hours,
         "actuals": actuals_to_json(start, end),
         "forecasts": forecasts_to_json(start, end, lead_hours),
     }
+
+
+# Rows for /api/metrics/by-lead (about 0.45 s: the selection and metrics run 48 times).
+@lru_cache(maxsize=128)
+def lead_time_json(start, end):
+    leads = range(MIN_LEAD_HOURS, MAX_LEAD_HOURS + 1)
+    table = metrics_by_lead_time(FORECASTS, ACTUALS, hourly_targets(start, end), leads)
+    return table_to_json(table)
+
+
+# Rows for /api/metrics/by-hour (about 0.09 s: the metrics run 24 times).
+@lru_cache(maxsize=128)
+def hour_of_day_json(start, end, lead_hours):
+    return table_to_json(metrics_by_hour_of_day(get_pairs(start, end, lead_hours)))
+
+
+# Chart data: half-hourly actuals plus the hourly forecast a buyer had lead_hours before.
+@app.get("/api/series")
+def get_series(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
+    check_dates(start, end)
+    check_lead_hours(lead_hours)
+    return series_json(start, end, lead_hours)
 
 
 # Headline numbers for one lead time over the date range: accuracy metrics plus
@@ -166,9 +191,7 @@ def get_metrics(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours
 @app.get("/api/metrics/by-lead")
 def get_metrics_by_lead(start: date = DEFAULT_START, end: date = DEFAULT_END):
     check_dates(start, end)
-    leads = range(MIN_LEAD_HOURS, MAX_LEAD_HOURS + 1)
-    table = metrics_by_lead_time(FORECASTS, ACTUALS, hourly_targets(start, end), leads)
-    return table_to_json(table)
+    return lead_time_json(start, end)
 
 
 # Accuracy for each hour of the day (UTC) at one lead time.
@@ -176,7 +199,7 @@ def get_metrics_by_lead(start: date = DEFAULT_START, end: date = DEFAULT_END):
 def get_metrics_by_hour(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
     check_dates(start, end)
     check_lead_hours(lead_hours)
-    return table_to_json(metrics_by_hour_of_day(get_pairs(start, end, lead_hours)))
+    return hour_of_day_json(start, end, lead_hours)
 
 
 # Accuracy for each band of actual generation at one lead time.
