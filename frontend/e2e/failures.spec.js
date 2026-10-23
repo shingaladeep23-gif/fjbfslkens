@@ -54,3 +54,25 @@ test("slow lead-time chart (5 s): the rest of the page is usable meanwhile", asy
   await expect(leadChart).toContainText("Loading…");
   await expect(leadChart.locator(".recharts-wrapper")).toBeVisible({ timeout: 10000 });
 });
+
+test("a slow request is not restarted when another control changes", async ({ page }) => {
+  await page.goto("/"); // load once first, so the reload below is quick
+  await expect(page.locator(".status")).toHaveText(""); // ...and let that first load's requests finish
+  await page.route((url) => url.pathname === "/api/metrics/by-lead", async (route) => {
+    await wait(3000);
+    await route.continue();
+  });
+  const byLeadRequests = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/metrics/by-lead")) {
+      byLeadRequests.push(r.url());
+    }
+  });
+  await page.reload();
+  await expect(card(page, "Typical miss").locator(".big")).not.toHaveText("");
+  await pressSliderKey(page, "ArrowRight");
+  await pressSliderKey(page, "ArrowRight");
+  const leadChart = page.locator("section", { has: page.getByRole("heading", { name: "How accuracy changes with lead time" }) });
+  await expect(leadChart.locator(".recharts-wrapper")).toBeVisible();
+  expect(byLeadRequests).toHaveLength(1); // the one slow request finished and was used
+});

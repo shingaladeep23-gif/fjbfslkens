@@ -51,8 +51,14 @@ function useApi(url, changeCount) {
   const [loading, setLoading] = useState(true);
   // The URL whose answer is on screen and arrived without an error.
   const lastGoodUrl = useRef(null);
+  // The URL being fetched right now, if any.
+  const fetchingUrl = useRef(null);
+  // The URL the page wants now. An answer for any other URL is ignored when it arrives,
+  // so a slow, older answer can never overwrite a newer one.
+  const wantedUrl = useRef(url);
 
   useEffect(() => {
+    wantedUrl.current = url;
     // No URL means the inputs are not valid: ask the API nothing.
     if (url === null) {
       setLoading(false);
@@ -64,25 +70,34 @@ function useApi(url, changeCount) {
       setLoading(false);
       return;
     }
-    // If the URL changes before this request finishes, its answer is ignored.
-    let ignore = false;
+    // This URL is already on its way: let that request finish instead of starting it again.
+    if (url === fetchingUrl.current) {
+      return;
+    }
+    fetchingUrl.current = url;
     setLoading(true);
     setError(null);
     fetchJson(url)
       .then((body) => {
-        if (!ignore) {
+        if (wantedUrl.current === url) {
           setData(body);
           lastGoodUrl.current = url;
         }
       })
       .catch((err) => {
-        if (!ignore) {
+        if (wantedUrl.current === url) {
           setError(err.message);
           lastGoodUrl.current = null;
         }
       })
-      .finally(() => { if (!ignore) setLoading(false); });
-    return () => { ignore = true; };
+      .finally(() => {
+        if (fetchingUrl.current === url) {
+          fetchingUrl.current = null;
+        }
+        if (wantedUrl.current === url) {
+          setLoading(false);
+        }
+      });
   }, [url, changeCount]);
 
   return { data, error, loading };
