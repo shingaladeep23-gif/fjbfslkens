@@ -59,7 +59,9 @@ function useApi(url, changeCount) {
       return;
     }
     // Same URL as the answer already on screen: nothing to fetch (e.g. by-lead when the slider moves).
+    // Loading may still be on from a request that was just abandoned, so switch it off.
     if (url === lastGoodUrl.current) {
+      setLoading(false);
       return;
     }
     // If the URL changes before this request finishes, its answer is ignored.

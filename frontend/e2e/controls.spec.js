@@ -63,6 +63,23 @@ test("moving the slider quickly ends on the last value even if older answers arr
   await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, lastLead);
 });
 
+test("going back to the starting lead while answers are on the way: the page settles on the starting numbers", async ({ page, request }) => {
+  await page.goto("/");
+  await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24);
+  // Answers for 25 h take 1.5 s, so they are still on the way when the user goes back to 24 h.
+  await page.route("**/api/**", async (route) => {
+    if (route.request().url().includes("lead_hours=25")) {
+      await wait(1500);
+    }
+    await route.continue();
+  });
+  await pressSliderKey(page, "ArrowRight");
+  await pressSliderKey(page, "ArrowLeft");
+  await expect(page.getByRole("slider")).toHaveValue("24");
+  await page.waitForResponse((r) => r.url().includes("/api/metrics?") && r.url().includes("lead_hours=25"));
+  await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24); // also checks "Loading…" has gone
+});
+
 test("changing dates quickly ends on the last range even if older answers arrive late", async ({ page, request }) => {
   await page.goto("/");
   await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24);
