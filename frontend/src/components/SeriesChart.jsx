@@ -93,7 +93,7 @@ export default function SeriesChart({ series }) {
       <ResponsiveContainer width="100%" height={360}>
         <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
           <CartesianGrid stroke="#e7e6e2" vertical={false} />
-          <XAxis dataKey="time" ticks={midnightTicks(series.actuals)} tickFormatter={formatDay} />
+          <XAxis dataKey="time" ticks={midnightTicks(series.actuals)} tickFormatter={formatDay} tickMargin={12} />
           <YAxis domain={[0, 25000]} ticks={[0, 5000, 10000, 15000, 20000, 25000]} tickFormatter={formatGW} width={56} />
           <Tooltip content={<SeriesTooltip actualByTime={actualByTime} forecastByTime={forecastByTime} />} />
           <Legend itemSorter={null} />
