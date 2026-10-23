@@ -1,2 +1,5 @@
-# Python dependencies for the Vercel function (api/index.py): the same pinned versions as the back end.
--r backend/requirements.txt
+# Python packages for the Vercel function (api/index.py), with the same pinned versions as
+# backend/requirements.txt. Vercel can't read "-r" includes, so they are listed again here;
+# backend/tests/test_requirements.py checks the two files agree.
+pandas==3.1.0
+fastapi==0.161.1
