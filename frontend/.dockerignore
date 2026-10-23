@@ -1,0 +1,8 @@
+# Keep the image build small and clean: installed packages and build output are recreated
+# inside the image, and the tests are not part of the app.
+node_modules
+dist
+e2e
+test-results
+playwright-report
+playwright.config.js

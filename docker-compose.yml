@@ -1,0 +1,16 @@
+# The whole app in two containers:
+# - backend: the FastAPI API, reachable only inside Docker's network
+# - frontend: nginx serving the React page and passing /api on to the backend
+# Run: docker compose up --build    then open http://localhost:8080
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

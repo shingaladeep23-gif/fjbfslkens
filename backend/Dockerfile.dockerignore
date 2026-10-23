@@ -1,0 +1,8 @@
+# The API image is built from the repo root, so send Docker only what it needs:
+# the requirements, the app code and the January data snapshot. Everything else
+# (front end, tests, notebook, caches) stays out of the image.
+*
+!backend/requirements.txt
+!backend/app/
+!data/
+**/__pycache__
