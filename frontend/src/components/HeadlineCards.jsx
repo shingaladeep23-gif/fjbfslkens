@@ -4,7 +4,7 @@ import { formatMW, formatPercent, formatSignedMW } from "../format.js";
 export default function HeadlineCards({ metrics }) {
   const hoursWithForecast = metrics.hours - metrics.gaps;
   return (
-    <section>
+    <>
       <div className="cards">
         <div className="card">
           <h3>Typical miss</h3>
@@ -28,6 +28,6 @@ export default function HeadlineCards({ metrics }) {
         Based on {hoursWithForecast} hours with a forecast available
         {metrics.gaps > 0 ? `; ${metrics.gaps} hours had no forecast at this lead time` : ""}.
       </p>
-    </section>
+    </>
   );
 }

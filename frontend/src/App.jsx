@@ -23,7 +23,7 @@ async function fetchJson(url) {
     body = null; // not JSON, e.g. the back end is not running
   }
   if (!response.ok) {
-    const message = body && body.detail ? body.detail : `The server answered ${response.status}. Is the back end running?`;
+    const message = body && body.detail ? body.detail : `The server answered with an error (${response.status}).`;
     throw new Error(message);
   }
   return body;
@@ -67,8 +67,8 @@ export default function App() {
 
   const requests = [series, metrics, byLead, byHour, byLevel];
   const loading = requests.some((request) => request.loading);
-  const failed = requests.find((request) => request.error);
-  const ready = requests.every((request) => request.data !== null);
+  // If every request failed (e.g. the server is down, or start is after end), say it once for the page.
+  const allFailed = requests.every((request) => request.error);
 
   return (
     <main>
@@ -92,18 +92,41 @@ export default function App() {
       />
 
       <p className="status" aria-live="polite">{loading ? "Loading…" : ""}</p>
-      {failed && <p className="error">{failed.error}</p>}
+      {allFailed && <p className="error">{series.error}</p>}
 
-      {!failed && ready && (
+      {!allFailed && (
         <>
-          <HeadlineCards metrics={metrics.data} />
-          <SeriesChart series={series.data} />
-          <LeadTimeChart rows={byLead.data} selectedLead={leadHours} />
-          <BreakdownCharts byHour={byHour.data} byLevel={byLevel.data} />
+          <Part requests={[metrics]}>
+            <HeadlineCards metrics={metrics.data} />
+          </Part>
+          <Part title="Actual wind output vs the forecast available at decision time" requests={[series]}>
+            <SeriesChart series={series.data} />
+          </Part>
+          <Part title="How accuracy changes with lead time (MW)" requests={[byLead]}>
+            <LeadTimeChart rows={byLead.data} selectedLead={leadHours} />
+          </Part>
+          <Part title="Where the forecast misses most (MW)" requests={[byHour, byLevel]}>
+            <BreakdownCharts byHour={byHour.data} byLevel={byLevel.data} />
+          </Part>
           <Notes />
         </>
       )}
     </main>
+  );
+}
+
+// One part of the page: its heading, then its own error, a loading line, or its content.
+// Each part only waits for its own requests, so one slow or failing request can't blank the page.
+function Part({ title, requests, children }) {
+  const failed = requests.find((request) => request.error);
+  const ready = requests.every((request) => request.data !== null);
+  return (
+    <section>
+      {title && <h2>{title}</h2>}
+      {failed && <p className="error">{failed.error}</p>}
+      {!failed && !ready && <p className="muted">Loading…</p>}
+      {!failed && ready && children}
+    </section>
   );
 }
 

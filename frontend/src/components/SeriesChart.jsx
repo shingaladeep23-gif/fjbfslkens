@@ -89,8 +89,7 @@ export default function SeriesChart({ series }) {
   const forecastByTime = byTime(series.forecasts);
   const rows = chartRows(series.actuals, forecastByTime);
   return (
-    <section>
-      <h2>Actual wind output vs the forecast available at decision time</h2>
+    <>
       <ResponsiveContainer width="100%" height={360}>
         <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
           <CartesianGrid stroke="#e7e6e2" vertical={false} />
@@ -103,6 +102,6 @@ export default function SeriesChart({ series }) {
         </LineChart>
       </ResponsiveContainer>
       <p className="muted">Times in UTC. Breaks in the forecast line are hours with no forecast available in time.</p>
-    </section>
+    </>
   );
 }

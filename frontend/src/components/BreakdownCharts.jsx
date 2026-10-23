@@ -39,12 +39,9 @@ function levelLabel(level, payload) {
 // The two breakdowns side by side: by hour of day, and by how windy it actually was.
 export default function BreakdownCharts({ byHour, byLevel }) {
   return (
-    <section>
-      <h2>Where the forecast misses most (MW)</h2>
-      <div className="two-columns">
-        <ErrorBars title="By hour of day (UTC)" rows={byHour} groupKey="hour" tooltipLabel={hourLabel} />
-        <ErrorBars title="By actual wind output" rows={byLevel} groupKey="level" tooltipLabel={levelLabel} />
-      </div>
-    </section>
+    <div className="two-columns">
+      <ErrorBars title="By hour of day (UTC)" rows={byHour} groupKey="hour" tooltipLabel={hourLabel} />
+      <ErrorBars title="By actual wind output" rows={byLevel} groupKey="level" tooltipLabel={levelLabel} />
+    </div>
   );
 }
