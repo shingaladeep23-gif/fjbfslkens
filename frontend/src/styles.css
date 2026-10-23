@@ -139,3 +139,25 @@ h3 {
   outline: 2px solid #2a78d6;
   outline-offset: 2px;
 }
+
+/* The two-option decision-time toggle: a plain radio group, one option per line. */
+.controls fieldset.mode {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.controls fieldset.mode legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.controls fieldset.mode label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}

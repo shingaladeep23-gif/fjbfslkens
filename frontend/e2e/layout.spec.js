@@ -48,11 +48,11 @@ test("on a phone (390×844) the page is readable and usable, with the cards stac
   await expectNoSidewaysScroll(page);
 });
 
-test("keyboard only: Tab reaches From, To and the slider in that order, with a visible focus ring", async ({ page }) => {
+test("keyboard only: Tab reaches From, To, the decision-time toggle and the slider in that order, with a visible focus ring", async ({ page }) => {
   await page.goto("/");
   await expect(card(page, "Typical miss")).toBeVisible();
   const order = [];
-  for (let i = 0; i < 12 && order.length < 3; i++) {
+  for (let i = 0; i < 14 && order.length < 4; i++) {
     await page.keyboard.press("Tab");
     const focused = await page.evaluate(() => {
       const element = document.activeElement;
@@ -64,7 +64,7 @@ test("keyboard only: Tab reaches From, To and the slider in that order, with a v
       order.push(focused.name);
     }
   }
-  expect(order).toEqual(["From", "To", "Fore"]);
+  expect(order).toEqual(["From", "To", "Fixe", "Fore"]); // Fixe = "Fixed lead time", the checked radio
 });
 
 test("accessibility: no serious or critical axe violations", async ({ page, request }) => {

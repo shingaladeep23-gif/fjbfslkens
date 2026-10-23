@@ -27,7 +27,7 @@ export default function HeadlineCards({ metrics }) {
       </div>
       <p className="muted">
         Based on {hoursWithForecast} hours with a forecast available
-        {metrics.gaps > 0 ? `; ${metrics.gaps} hours had no forecast at this lead time` : ""}.
+        {metrics.gaps > 0 ? `; ${metrics.gaps} hours had no forecast available in time` : ""}.
       </p>
       <p className="muted plan-on-note">
         The dashed plan-on line on the chart is {Math.round(PLAN_ON_SHARE * 100)}% of the forecast. Learned from

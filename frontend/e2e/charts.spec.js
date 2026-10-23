@@ -93,6 +93,26 @@ test("the plan-on line is drawn dashed, and its tooltip value is 73% of the fore
   await expect(halfHour).not.toContainText("Plan-on level");
 });
 
+test("no look-ahead in auction mode: every hovered forecast was published by 09:50 the day before its target", async ({ page, request }) => {
+  await page.goto("/");
+  await page.getByLabel("Day-ahead auction (09:50 the day before)").check();
+  await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24, "auction");
+  const checkedTimes = [];
+  for (let step = 0; step <= 40; step++) {
+    const tooltip = await hoverMainChartPoint(page, Math.round((1487 * step) / 40), 1488);
+    const target = new Date(await tooltip.getAttribute("data-time"));
+    const published = await tooltip.getAttribute("data-published");
+    if (published) {
+      // 09:50 UTC on the day before the target's day.
+      const auctionClose = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate() - 1, 9, 50);
+      expect(new Date(published).getTime(), `target ${target.toISOString()}`).toBeLessThanOrEqual(auctionClose);
+      checkedTimes.push(target);
+    }
+  }
+  expect(checkedTimes.length).toBeGreaterThan(10);
+  expect(checkedTimes[checkedTimes.length - 1].getTime()).toBeGreaterThan(Date.UTC(2026, 0, 30));
+});
+
 test("gaps at 48 h: the tooltip says none was available and the gap count matches the API", async ({ page, request }) => {
   await page.goto("/");
   await setDates(page, "2026-01-10", "2026-01-11");

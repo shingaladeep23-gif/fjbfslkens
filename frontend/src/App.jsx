@@ -91,6 +91,8 @@ export default function App() {
   const [start, setStart] = useState("2026-01-01");
   const [end, setEnd] = useState("2026-01-31");
   const [leadHours, setLeadHours] = useState(24);
+  // "lead": decide a fixed number of hours ahead. "auction": decide at 09:50 the day before.
+  const [mode, setMode] = useState("lead");
   // Goes up by one every time the user changes a control; lets failed requests retry.
   const [changeCount, setChangeCount] = useState(0);
 
@@ -107,6 +109,10 @@ export default function App() {
     setLeadHours(value);
     setChangeCount(changeCount + 1);
   }
+  function changeMode(value) {
+    setMode(value);
+    setChangeCount(changeCount + 1);
+  }
 
   const problem = dateProblem(start, end);
   // The URL to ask the API for, or null (ask nothing) while the dates are not valid.
@@ -114,7 +120,7 @@ export default function App() {
     return problem ? null : `${path}?${query}`;
   }
   const range = `start=${start}&end=${end}`;
-  const rangeAndLead = `${range}&lead_hours=${leadHours}`;
+  const rangeAndLead = `${range}&mode=${mode}&lead_hours=${leadHours}`;
   const series = useApi(urlFor("/api/series", rangeAndLead), changeCount);
   const metrics = useApi(urlFor("/api/metrics", rangeAndLead), changeCount);
   const byLead = useApi(urlFor("/api/metrics/by-lead", range), changeCount); // does not depend on the slider
@@ -141,11 +147,13 @@ export default function App() {
       <Controls
         start={start}
         end={end}
+        mode={mode}
         leadHours={leadHours}
         firstDay={FIRST_DAY}
         lastDay={LAST_DAY}
         onStartChange={changeStart}
         onEndChange={changeEnd}
+        onModeChange={changeMode}
         onLeadHoursChange={changeLeadHours}
       />
 
@@ -162,7 +170,7 @@ export default function App() {
             <SeriesChart series={series.data} />
           </Part>
           <Part title="How accuracy changes with lead time (MW)" requests={[byLead]}>
-            <LeadTimeChart rows={byLead.data} selectedLead={leadHours} />
+            <LeadTimeChart rows={byLead.data} selectedLead={mode === "lead" ? leadHours : null} />
           </Part>
           <Part title="Where the forecast misses most (MW)" requests={[byHour, byLevel]}>
             <BreakdownCharts byHour={byHour.data} byLevel={byLevel.data} />
@@ -199,6 +207,11 @@ function Notes() {
         <li>
           The forecast shown for each hour is the latest one published at least the chosen number of hours
           before that hour. Later forecasts are never used, because the buyer would not have had them.
+        </li>
+        <li>
+          In <strong>day-ahead auction</strong> mode, every hour of a day uses the latest forecast published by
+          09:50 the day before, when Nord Pool&apos;s GB day-ahead auction closes. In January UK time is the same as
+          UTC; in summer (BST) the auction would close at 08:50 UTC.
         </li>
         <li>
           Forecasts are hourly; actual output is measured every half-hour. Accuracy numbers compare each

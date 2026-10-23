@@ -52,7 +52,7 @@ test("moving the slider quickly ends on the last value even if older answers arr
   });
   const slider = page.getByRole("slider");
   const box = await slider.boundingBox();
-  for (const fraction of [0.1, 0.9, 0.5]) {
+  for (const fraction of [0.1, 0.9, 0.7]) { // three different leads, none of them the starting 24 h
     await page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
   }
   await expect.poll(() => leadsInOrder.length).toBe(3);
@@ -81,6 +81,19 @@ test("changing dates quickly ends on the last range even if older answers arrive
   }
   await page.waitForResponse((r) => r.url().includes("/api/metrics?start=2026-01-05&"));
   await expectCardsToMatchApi(page, request, "2026-01-15", JANUARY_END, 24);
+});
+
+test("decision-time toggle: auction mode disables the slider and shows the auction numbers, and switching back restores them", async ({ page, request }) => {
+  await page.goto("/");
+  const lead = await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24);
+  await page.getByLabel("Day-ahead auction (09:50 the day before)").check();
+  await expect(page.getByRole("slider")).toBeDisabled();
+  await expect(page.getByText("Each hour uses the forecast available at 09:50 UTC the day before")).toBeVisible();
+  const auction = await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24, "auction");
+  expect(auction.mae).not.toBe(lead.mae);
+  await page.getByLabel("Fixed lead time").check();
+  await expect(page.getByRole("slider")).toBeEnabled();
+  await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24);
 });
 
 test("a single-day range (start = end) works", async ({ page, request }) => {

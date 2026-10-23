@@ -5,9 +5,9 @@ import { formatMW, formatPercent, formatSignedMW } from "../src/format.js";
 export const JANUARY_START = "2026-01-01";
 export const JANUARY_END = "2026-01-31";
 
-// The query string the page sends, e.g. "start=2026-01-01&end=2026-01-31&lead_hours=24".
-export function query(start, end, lead) {
-  return `start=${start}&end=${end}&lead_hours=${lead}`;
+// The query string the page sends, e.g. "start=2026-01-01&end=2026-01-31&mode=lead&lead_hours=24".
+export function query(start, end, lead, mode = "lead") {
+  return `start=${start}&end=${end}&mode=${mode}&lead_hours=${lead}`;
 }
 
 // Ask the API directly, through the same /api proxy the page uses, and return the JSON.
@@ -27,8 +27,8 @@ export function card(page, title) {
 }
 
 // Check the three cards show exactly what /api/metrics returns, then wait until nothing is loading.
-export async function expectCardsToMatchApi(page, request, start, end, lead) {
-  const metrics = await apiGet(request, `/api/metrics?${query(start, end, lead)}`);
+export async function expectCardsToMatchApi(page, request, start, end, lead, mode = "lead") {
+  const metrics = await apiGet(request, `/api/metrics?${query(start, end, lead, mode)}`);
   await expect(card(page, "Typical miss").locator(".big")).toHaveText(formatMW(metrics.mae));
   await expect(card(page, "Typical miss")).toContainText(formatPercent(metrics.mae_pct_of_mean_actual));
   await expect(card(page, "Forecast minus actual").locator(".big")).toHaveText(formatSignedMW(metrics.mean_forecast_minus_actual));

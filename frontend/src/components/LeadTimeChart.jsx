@@ -5,7 +5,8 @@ export const MISS_COLOUR = "#4a3aa7";
 export const DIFFERENCE_COLOUR = "#008300";
 
 // How accuracy changes as the forecast gets older: typical miss and forecast minus actual
-// for every lead time from 1 to 48 h. A dashed line marks the lead time chosen on the slider.
+// for every lead time from 1 to 48 h. A dashed line marks the lead time chosen on the slider
+// (none in auction mode, where selectedLead is null).
 export default function LeadTimeChart({ rows, selectedLead }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -21,7 +22,7 @@ export default function LeadTimeChart({ rows, selectedLead }) {
         <YAxis tickFormatter={(value) => value.toLocaleString("en-GB")} width={56} />
         <Tooltip formatter={(value) => formatMW(value)} labelFormatter={(lead) => `${lead} h before delivery`} itemSorter={null} />
         <Legend verticalAlign="top" itemSorter={null} />
-        <ReferenceLine x={selectedLead} stroke="#8a8984" strokeDasharray="4 4" />
+        {selectedLead !== null && <ReferenceLine x={selectedLead} stroke="#8a8984" strokeDasharray="4 4" />}
         <ReferenceLine y={0} stroke="#8a8984" />
         <Line dataKey="mae" name="Typical miss (MAE)" stroke={MISS_COLOUR} strokeWidth={2} dot={false} isAnimationActive={false} />
         <Line dataKey="mean_forecast_minus_actual" name="Forecast minus actual (average)" stroke={DIFFERENCE_COLOUR} strokeWidth={2} dot={false} isAnimationActive={false} />
