@@ -15,7 +15,7 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `backend/app/metrics.py` | Accuracy metrics (error = forecast − actual) and breakdowns by lead time, hour and generation level |
 | `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
 | `backend/tests/` | pytest suite |
-| `frontend/` | React page (Vite, plain JavaScript, Recharts): `src/App.jsx` loads the data, `src/components/` has one file per part of the page, `src/styles.css` is the only stylesheet |
+| `frontend/` | React page (Vite, plain JavaScript, Recharts): `src/App.jsx` loads the data, `src/components/` has one file per part of the page, `src/styles.css` is the only stylesheet, `e2e/` holds the Playwright tests |
 
 ## Running the API locally
 
@@ -49,10 +49,21 @@ Open http://localhost:5173. In development, Vite passes every `/api` request on 
 
 ## Running the tests
 
+Back-end unit tests:
+
 ```
 cd backend
 pip install -r requirements.txt
 python -m pytest
+```
+
+End-to-end browser tests (Playwright, Chromium). One command starts the API and the front end itself, then runs the tests:
+
+```
+cd frontend
+npm install
+npx playwright install chromium
+npx playwright test
 ```
 
 ## Assumptions
