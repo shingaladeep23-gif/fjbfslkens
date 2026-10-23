@@ -15,6 +15,7 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `backend/app/metrics.py` | Accuracy metrics (error = forecast − actual) and breakdowns by lead time, hour and generation level |
 | `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
 | `backend/tests/` | pytest suite |
+| `frontend/` | React page (Vite, plain JavaScript, Recharts): `src/App.jsx` loads the data, `src/components/` has one file per part of the page, `src/styles.css` is the only stylesheet |
 
 ## Running the API locally
 
@@ -29,10 +30,22 @@ Interactive docs: http://127.0.0.1:8000/docs. All endpoints take `start` and `en
 | Endpoint | Returns |
 |---|---|
 | `GET /api/series` | Half-hourly actuals and the hourly forecast available `lead_hours` before each target (`null` = gap) |
-| `GET /api/metrics` | MAE, RMSE, mean forecast minus actual, error P10/P50/P90, MAE % of mean actual, hours and gaps |
+| `GET /api/metrics` | MAE, RMSE, mean forecast minus actual, error P10/P50/P90, MAE % of mean actual, hours and gaps, plus P10/P50/P90 of actual and forecast output |
 | `GET /api/metrics/by-lead` | The same metrics for every lead time from 1 to 48 h |
 | `GET /api/metrics/by-hour` | The same metrics for each hour of the day (UTC) |
 | `GET /api/metrics/by-level` | The same metrics for each band of actual generation |
+
+## Running the front end locally
+
+Start the API first (see above, port 8000), then in a second terminal:
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. In development, Vite passes every `/api` request on to the API on port 8000 (see `frontend/vite.config.js`), so the browser sees one site and no CORS setup is needed.
 
 ## Running the tests
 
