@@ -66,6 +66,33 @@ test("no look-ahead: across all of January, every hovered forecast was published
   }
 });
 
+test("the plan-on line is drawn dashed, and its tooltip value is 73% of the forecast", async ({ page, request }) => {
+  await page.goto("/");
+  await setDates(page, "2026-01-10", "2026-01-11");
+  await expectCardsToMatchApi(page, request, "2026-01-10", "2026-01-11", 24);
+  const mainChart = page.locator(".recharts-wrapper").first();
+  await expect(mainChart.locator(".recharts-legend-item-text").nth(2)).toHaveText("Plan-on level = 73% of forecast (learned from December)");
+  await expect(mainChart.locator(".recharts-line").nth(2).locator(".recharts-line-curve")).toHaveAttribute("stroke-dasharray", "6 4");
+  await expect(page.getByText("Learned from December, this level was met in 89% of January hours.")).toBeVisible();
+
+  const series = await apiGet(request, `/api/series?${query("2026-01-10", "2026-01-11", 24)}`);
+  const forecastByTime = {};
+  for (const forecast of series.forecasts) {
+    forecastByTime[forecast.time] = forecast;
+  }
+  const count = series.actuals.length;
+  for (const index of [6, 30, 70]) { // 10 Jan 03:00, 10 Jan 15:00, 11 Jan 11:00
+    const actual = series.actuals[index];
+    const tooltip = await hoverMainChartPoint(page, index, count);
+    await expect(tooltip).toHaveAttribute("data-time", actual.time);
+    await expect(tooltip).toContainText(`Plan-on level: ${formatMW(forecastByTime[actual.time].generation * 0.73)}`);
+  }
+  // At :30 nothing is published, so the tooltip shows no plan-on value.
+  const halfHour = await hoverMainChartPoint(page, 31, count);
+  await expect(halfHour).toHaveAttribute("data-time", series.actuals[31].time);
+  await expect(halfHour).not.toContainText("Plan-on level");
+});
+
 test("gaps at 48 h: the tooltip says none was available and the gap count matches the API", async ({ page, request }) => {
   await page.goto("/");
   await setDates(page, "2026-01-10", "2026-01-11");
@@ -109,7 +136,11 @@ test("every legend lists its series in the order they are drawn", async ({ page,
   await page.goto("/");
   await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24);
   const legends = page.locator(".recharts-legend-wrapper");
-  await expect(legends.nth(0).locator(".recharts-legend-item-text")).toHaveText(["Actual (every half-hour)", "Forecast (hourly)"]);
+  await expect(legends.nth(0).locator(".recharts-legend-item-text")).toHaveText([
+    "Actual (every half-hour)",
+    "Forecast (hourly)",
+    "Plan-on level = 73% of forecast (learned from December)",
+  ]);
   await expect(legends.nth(1).locator(".recharts-legend-item-text")).toHaveText(["Typical miss (MAE)", "Forecast minus actual (average)"]);
   await expect(legends.nth(2).locator(".recharts-legend-item-text")).toHaveText(["Typical miss", "Forecast minus actual"]);
   await expect(legends.nth(3).locator(".recharts-legend-item-text")).toHaveText(["Typical miss", "Forecast minus actual"]);

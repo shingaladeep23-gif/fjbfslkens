@@ -82,8 +82,8 @@ test("refreshing the browser mid-use reloads cleanly to the defaults", async ({ 
   await pressSliderKey(page, "End");
   await expectCardsToMatchApi(page, request, "2026-01-10", "2026-01-12", 48);
   await page.reload();
-  await expect(page.getByLabel("From")).toHaveValue(JANUARY_START);
-  await expect(page.getByLabel("To")).toHaveValue(JANUARY_END);
+  await expect(page.getByLabel("From", { exact: true })).toHaveValue(JANUARY_START);
+  await expect(page.getByLabel("To", { exact: true })).toHaveValue(JANUARY_END);
   await expect(page.getByRole("slider")).toHaveValue("24");
   await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24);
 });

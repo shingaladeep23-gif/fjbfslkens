@@ -1,8 +1,10 @@
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatDay, formatGW, formatMW, formatTime } from "../format.js";
+import { PLAN_ON_SHARE } from "../planOn.js";
 
 const ACTUAL_COLOUR = "#2a78d6";
 const FORECAST_COLOUR = "#eb6834";
+const PLAN_ON_COLOUR = "#52514e";
 const HALF_HOUR_MS = 30 * 60 * 1000;
 
 // Pick axis ticks at midnight, skipping days so there are at most about 10 labels.
@@ -40,6 +42,7 @@ function shiftTime(isoTime, milliseconds) {
 // At :30 there is no forecast, so forecastLine is the average of the hours either side:
 // exactly the point a straight line between them passes through, so the drawing is the same.
 // If either hour is a gap, :30 stays empty and the line breaks. The tooltip never shows forecastLine.
+// planOnLine is the same line scaled to the plan-on share (see planOn.js).
 function chartRows(actuals, forecastByTime) {
   const rows = [];
   for (const actual of actuals) {
@@ -54,12 +57,14 @@ function chartRows(actuals, forecastByTime) {
         forecastLine = (before.generation + after.generation) / 2;
       }
     }
-    rows.push({ time: actual.time, actual: actual.generation, forecastLine: forecastLine });
+    const planOnLine = forecastLine === null ? null : forecastLine * PLAN_ON_SHARE;
+    rows.push({ time: actual.time, actual: actual.generation, forecastLine: forecastLine, planOnLine: planOnLine });
   }
   return rows;
 }
 
-// Tooltip for one hovered time: the actual, and the published forecast with when it was published.
+// Tooltip for one hovered time: the actual, the published forecast with when it was published,
+// and the plan-on level worked out from that published forecast (only on the hour).
 function SeriesTooltip({ active, label, actualByTime, forecastByTime }) {
   if (!active || !label) {
     return null;
@@ -78,6 +83,7 @@ function SeriesTooltip({ active, label, actualByTime, forecastByTime }) {
       <strong>{formatTime(label)} UTC</strong>
       <div>Actual: {actual ? formatMW(actual.generation) : "–"}</div>
       <div>Forecast: {forecastText}</div>
+      {forecast && forecast.generation !== null && <div>Plan-on level: {formatMW(forecast.generation * PLAN_ON_SHARE)}</div>}
     </div>
   );
 }
@@ -99,6 +105,15 @@ export default function SeriesChart({ series }) {
           <Legend itemSorter={null} />
           <Line dataKey="actual" name="Actual (every half-hour)" stroke={ACTUAL_COLOUR} strokeWidth={2} dot={false} isAnimationActive={false} />
           <Line dataKey="forecastLine" name="Forecast (hourly)" stroke={FORECAST_COLOUR} strokeWidth={2} dot={false} isAnimationActive={false} />
+          <Line
+            dataKey="planOnLine"
+            name={`Plan-on level = ${Math.round(PLAN_ON_SHARE * 100)}% of forecast (learned from December)`}
+            stroke={PLAN_ON_COLOUR}
+            strokeWidth={2}
+            strokeDasharray="6 4"
+            dot={false}
+            isAnimationActive={false}
+          />
         </LineChart>
       </ResponsiveContainer>
       <p className="muted">Times in UTC. Breaks in the forecast line are hours with no forecast available in time.</p>

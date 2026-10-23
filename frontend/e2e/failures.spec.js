@@ -8,7 +8,7 @@ test("API down at load: a clear 'could not reach the server' message instead of 
   await page.goto("/");
   await expect(page.locator(".error")).toHaveText("Could not reach the server. Is the back end running?");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByLabel("From")).toBeEnabled();
+  await expect(page.getByLabel("From", { exact: true })).toBeEnabled();
 });
 
 test("one endpoint returning 500: that section shows an error and the rest of the page still works", async ({ page, request }) => {

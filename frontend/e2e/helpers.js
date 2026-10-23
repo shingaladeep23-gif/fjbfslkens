@@ -39,8 +39,8 @@ export async function expectCardsToMatchApi(page, request, start, end, lead) {
 
 // Pick a date range the way a user would, in the two date inputs.
 export async function setDates(page, start, end) {
-  await page.getByLabel("From").fill(start);
-  await page.getByLabel("To").fill(end);
+  await page.getByLabel("From", { exact: true }).fill(start);
+  await page.getByLabel("To", { exact: true }).fill(end);
 }
 
 // Press one key on the lead-time slider (e.g. "End" = 48 h, "Home" = 1 h, "ArrowRight" = +1 h).

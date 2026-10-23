@@ -77,7 +77,7 @@ test("changing dates quickly ends on the last range even if older answers arrive
     await route.continue();
   });
   for (const start of ["2026-01-05", "2026-01-10", "2026-01-15"]) {
-    await page.getByLabel("From").fill(start);
+    await page.getByLabel("From", { exact: true }).fill(start);
   }
   await page.waitForResponse((r) => r.url().includes("/api/metrics?start=2026-01-05&"));
   await expectCardsToMatchApi(page, request, "2026-01-15", JANUARY_END, 24);
@@ -109,7 +109,7 @@ test("start after end shows the API's message, and fixing the dates clears it", 
   await setDates(page, "2026-01-20", "2026-01-10");
   const apiError = await apiGet(request, `/api/metrics?${query("2026-01-20", "2026-01-10", 24)}`);
   await expect(page.locator(".error")).toHaveText(apiError.detail);
-  await page.getByLabel("To").fill("2026-01-25");
+  await page.getByLabel("To", { exact: true }).fill("2026-01-25");
   await expect(page.locator(".error")).toHaveCount(0);
   await expectCardsToMatchApi(page, request, "2026-01-20", "2026-01-25", 24);
 });
@@ -120,13 +120,13 @@ test("an empty, invalid or out-of-range date shows a clear message and sends no 
   const requests = recordApiRequests(page);
   const message = page.locator(".error");
 
-  await page.getByLabel("From").fill("");                 // cleared
+  await page.getByLabel("From", { exact: true }).fill("");                 // cleared
   await expect(message).toContainText("Choose dates between 1 Jan 2026 and 3 Feb 2026");
-  await page.getByLabel("From").fill(JANUARY_START);
-  await page.getByLabel("To").fill("2026-03-01");         // after the data ends
+  await page.getByLabel("From", { exact: true }).fill(JANUARY_START);
+  await page.getByLabel("To", { exact: true }).fill("2026-03-01");         // after the data ends
   await expect(message).toContainText("Choose dates between 1 Jan 2026 and 3 Feb 2026");
-  await page.getByLabel("To").fill(JANUARY_END);
-  await page.getByLabel("To").press("Backspace");         // typing breaks the date
+  await page.getByLabel("To", { exact: true }).fill(JANUARY_END);
+  await page.getByLabel("To", { exact: true }).press("Backspace");         // typing breaks the date
   await expect(message).toContainText("Choose dates between 1 Jan 2026 and 3 Feb 2026");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
@@ -142,7 +142,7 @@ test("the date inputs' min and max come from the data range", async ({ page, req
   const [, firstDay, lastDay] = apiError.detail.match(/between (\S+) and (\S+)/);
   await page.goto("/");
   for (const label of ["From", "To"]) {
-    await expect(page.getByLabel(label)).toHaveAttribute("min", firstDay);
-    await expect(page.getByLabel(label)).toHaveAttribute("max", lastDay);
+    await expect(page.getByLabel(label, { exact: true })).toHaveAttribute("min", firstDay);
+    await expect(page.getByLabel(label, { exact: true })).toHaveAttribute("max", lastDay);
   }
 });

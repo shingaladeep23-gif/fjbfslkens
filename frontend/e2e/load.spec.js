@@ -11,8 +11,8 @@ test("page title, header and explainer line are present", async ({ page }) => {
 
 test("default state is 1–31 January at 24 h, and the cards match the API", async ({ page, request }) => {
   await page.goto("/");
-  await expect(page.getByLabel("From")).toHaveValue(JANUARY_START);
-  await expect(page.getByLabel("To")).toHaveValue(JANUARY_END);
+  await expect(page.getByLabel("From", { exact: true })).toHaveValue(JANUARY_START);
+  await expect(page.getByLabel("To", { exact: true })).toHaveValue(JANUARY_END);
   await expect(page.getByRole("slider")).toHaveValue("24");
   await expect(page.getByText("Forecast made at least 24 h before delivery")).toBeVisible();
   await expectCardsToMatchApi(page, request, JANUARY_START, JANUARY_END, 24);
