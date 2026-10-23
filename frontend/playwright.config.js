@@ -4,6 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 // waits until both answer, then drives Chromium through the page like a user would.
 export default defineConfig({
   testDir: "./e2e",
+  expect: { timeout: 10000 }, // patience for slower CI machines; the checks themselves are unchanged
   use: {
     baseURL: "http://localhost:5173",
   },

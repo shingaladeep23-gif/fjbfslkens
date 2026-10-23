@@ -16,7 +16,7 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
 | `backend/tests/` | pytest suite |
 | `.github/workflows/tests.yml` | GitHub Actions: runs pytest and the Playwright tests on every push |
-| `frontend/` | React page (Vite, plain JavaScript, Recharts): `src/App.jsx` loads the data, `src/components/` has one file per part of the page, `src/styles.css` is the only stylesheet, `e2e/` holds the Playwright tests |
+| `frontend/` | React page (Vite, plain JavaScript, Recharts): `src/App.jsx` loads the data, `src/components/` has one file per part of the page, `src/styles.css` is the only stylesheet, `e2e/` holds the Playwright tests (one file per theme: load, controls, charts, failures, layout; shared helpers in `helpers.js`) |
 
 ## Running the API locally
 
@@ -58,7 +58,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-End-to-end browser tests (Playwright, Chromium). One command starts the API and the front end itself, then runs the tests:
+End-to-end browser tests (Playwright, Chromium, about 30 tests, under a minute locally). One command starts the API and the front end itself, then runs the tests:
 
 ```
 cd frontend
