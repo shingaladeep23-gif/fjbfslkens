@@ -16,12 +16,16 @@ from app.metrics import (
     reliability,
     summary_metrics,
 )
-from app.selection import select_forecasts
+from app.selection import select_forecasts, select_forecasts_for_auction
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 DEFAULT_START = date(2026, 1, 1)
 DEFAULT_END = date(2026, 1, 31)
 DEFAULT_LEAD_HOURS = 24
+# How the decision time is chosen: a fixed lead time before each hour, or the day-ahead
+# auction (09:50 UK time the day before; see selection.py).
+MODES = ["lead", "auction"]
+DEFAULT_MODE = "lead"
 MIN_LEAD_HOURS = 1
 MAX_LEAD_HOURS = 48
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -66,6 +70,12 @@ def check_lead_hours(lead_hours):
         raise HTTPException(400, f"lead_hours must be between {MIN_LEAD_HOURS} and {MAX_LEAD_HOURS}, got {lead_hours}")
 
 
+# Stop with a 400 if the mode is not one we know.
+def check_mode(mode):
+    if mode not in MODES:
+        raise HTTPException(400, f"mode must be 'lead' or 'auction', got '{mode}'")
+
+
 # Every hour from start 00:00 to end 23:00 UTC. Forecasts only exist on the hour.
 def hourly_targets(start, end):
     first = pd.Timestamp(start, tz="UTC")
@@ -73,10 +83,18 @@ def hourly_targets(start, end):
     return pd.date_range(first, last, freq="h")
 
 
+# The forecast available at decision time for every target hour in the range.
+# In auction mode lead_hours is not used: every hour of a day is decided at 09:50 the day before.
+def select_for_mode(start, end, lead_hours, mode):
+    targets = hourly_targets(start, end)
+    if mode == "auction":
+        return select_forecasts_for_auction(FORECASTS, targets)
+    return select_forecasts(FORECASTS, targets, lead_hours)
+
+
 # The selected forecast and the actual side by side for every target hour in the range.
-def get_pairs(start, end, lead_hours):
-    selected = select_forecasts(FORECASTS, hourly_targets(start, end), lead_hours)
-    return pair_with_actuals(selected, ACTUALS)
+def get_pairs(start, end, lead_hours, mode):
+    return pair_with_actuals(select_for_mode(start, end, lead_hours, mode), ACTUALS)
 
 
 # Format a timestamp for JSON; a missing one (a gap) becomes null.
@@ -127,8 +145,8 @@ def actuals_to_json(start, end):
 
 
 # The hourly forecast available at decision time; generation and publishTime are null for a gap.
-def forecasts_to_json(start, end, lead_hours):
-    selected = select_forecasts(FORECASTS, hourly_targets(start, end), lead_hours)
+def forecasts_to_json(start, end, lead_hours, mode):
+    selected = select_for_mode(start, end, lead_hours, mode)
     rows = []
     for time, row in selected.iterrows():
         rows.append({
@@ -145,11 +163,12 @@ def forecasts_to_json(start, end, lead_hours):
 
 # Chart data for /api/series (about 0.2 s for a month: building ~2,200 JSON rows).
 @lru_cache(maxsize=128)
-def series_json(start, end, lead_hours):
+def series_json(start, end, lead_hours, mode):
     return {
         "lead_hours": lead_hours,
+        "mode": mode,
         "actuals": actuals_to_json(start, end),
-        "forecasts": forecasts_to_json(start, end, lead_hours),
+        "forecasts": forecasts_to_json(start, end, lead_hours, mode),
     }
 
 
@@ -163,25 +182,32 @@ def lead_time_json(start, end):
 
 # Rows for /api/metrics/by-hour (about 0.09 s: the metrics run 24 times).
 @lru_cache(maxsize=128)
-def hour_of_day_json(start, end, lead_hours):
-    return table_to_json(metrics_by_hour_of_day(get_pairs(start, end, lead_hours)))
+def hour_of_day_json(start, end, lead_hours, mode):
+    return table_to_json(metrics_by_hour_of_day(get_pairs(start, end, lead_hours, mode)))
 
 
-# Chart data: half-hourly actuals plus the hourly forecast a buyer had lead_hours before.
+# Chart data: half-hourly actuals plus the hourly forecast a buyer had at decision time
+# (lead_hours before each hour, or at the day-ahead auction in auction mode).
 @app.get("/api/series")
-def get_series(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
+def get_series(
+    start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS, mode: str = DEFAULT_MODE
+):
     check_dates(start, end)
     check_lead_hours(lead_hours)
-    return series_json(start, end, lead_hours)
+    check_mode(mode)
+    return series_json(start, end, lead_hours, mode)
 
 
 # Headline numbers for one lead time over the date range: accuracy metrics plus
 # the reliability percentiles (e.g. actual_p10, the output reached 9 hours in 10).
 @app.get("/api/metrics")
-def get_metrics(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
+def get_metrics(
+    start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS, mode: str = DEFAULT_MODE
+):
     check_dates(start, end)
     check_lead_hours(lead_hours)
-    pairs = get_pairs(start, end, lead_hours)
+    check_mode(mode)
+    pairs = get_pairs(start, end, lead_hours, mode)
     result = summary_metrics(pairs)
     result.update(reliability(pairs))
     return dict_to_json(result)
@@ -196,15 +222,21 @@ def get_metrics_by_lead(start: date = DEFAULT_START, end: date = DEFAULT_END):
 
 # Accuracy for each hour of the day (UTC) at one lead time.
 @app.get("/api/metrics/by-hour")
-def get_metrics_by_hour(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
+def get_metrics_by_hour(
+    start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS, mode: str = DEFAULT_MODE
+):
     check_dates(start, end)
     check_lead_hours(lead_hours)
-    return hour_of_day_json(start, end, lead_hours)
+    check_mode(mode)
+    return hour_of_day_json(start, end, lead_hours, mode)
 
 
 # Accuracy for each band of actual generation at one lead time.
 @app.get("/api/metrics/by-level")
-def get_metrics_by_level(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
+def get_metrics_by_level(
+    start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS, mode: str = DEFAULT_MODE
+):
     check_dates(start, end)
     check_lead_hours(lead_hours)
-    return table_to_json(metrics_by_generation_level(get_pairs(start, end, lead_hours)))
+    check_mode(mode)
+    return table_to_json(metrics_by_generation_level(get_pairs(start, end, lead_hours, mode)))

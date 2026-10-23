@@ -79,3 +79,39 @@ def test_bad_dates():
     assert "between 2026-01-01 and 2026-02-03" in get_400("/api/series?start=2025-12-01&end=2026-01-02")
     assert "between 2026-01-01 and 2026-02-03" in get_400("/api/metrics/by-lead?start=2026-01-01&end=2026-03-01")
     assert "start" in get_400("/api/metrics?start=2026-13-01")
+
+
+# ---- mode=auction: decisions at 09:50 UTC the day before ----
+
+def test_series_auction_mode_uses_forecasts_from_before_0950_the_day_before():
+    body = get_ok("/api/series?start=2026-01-10&end=2026-01-11&mode=auction")
+    assert body["mode"] == "auction"
+    assert len(body["forecasts"]) == 48
+    for row in body["forecasts"]:
+        target = pd.Timestamp(row["time"])
+        decision = target.normalize() - pd.Timedelta(days=1) + pd.Timedelta(hours=9, minutes=50)
+        assert row["generation"] is not None
+        assert pd.Timestamp(row["publishTime"]) <= decision
+
+
+def test_metrics_auction_mode_ignores_lead_hours():
+    january = get_ok("/api/metrics?mode=auction")
+    assert january["hours"] == 744 and january["gaps"] == 0
+    assert get_ok("/api/metrics?mode=auction&lead_hours=1") == january
+    assert get_ok("/api/metrics?mode=auction&lead_hours=48") == january
+
+
+def test_default_mode_is_lead():
+    assert get_ok("/api/metrics") == get_ok("/api/metrics?mode=lead")
+    assert get_ok("/api/metrics") != get_ok("/api/metrics?mode=auction")
+
+
+def test_auction_mode_works_on_every_endpoint_that_selects_forecasts():
+    assert len(get_ok("/api/metrics/by-hour?mode=auction")) == 24
+    assert len(get_ok("/api/metrics/by-level?mode=auction")) == 4
+
+
+def test_bad_mode():
+    assert "mode must be 'lead' or 'auction'" in get_400("/api/metrics?mode=noon")
+    assert "got ''" in get_400("/api/series?mode=")
+    assert "mode must be" in get_400("/api/metrics/by-hour?mode=AUCTION")
