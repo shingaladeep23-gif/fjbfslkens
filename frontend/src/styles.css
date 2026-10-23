@@ -112,7 +112,8 @@ h3 {
 
 .two-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  /* min(): on a narrow phone a column may be the full width, never wider than the screen. */
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
   gap: 24px;
 }
 
