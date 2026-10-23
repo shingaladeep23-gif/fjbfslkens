@@ -13,7 +13,26 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `data/forecasts.csv` | WINDFOR forecasts published 30 Dec 2025 – 31 Jan 2026 |
 | `backend/app/selection.py` | The rule that picks the forecast available at decision time |
 | `backend/app/metrics.py` | Accuracy metrics (error = forecast − actual) and breakdowns by lead time, hour and generation level |
+| `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
 | `backend/tests/` | pytest suite |
+
+## Running the API locally
+
+```
+cd backend
+pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
+```
+
+Interactive docs: http://127.0.0.1:8000/docs. All endpoints take `start` and `end` as dates (`YYYY-MM-DD`, whole UTC days, both included, default 1–31 Jan 2026). Where it applies, they also take `lead_hours` (1–48, default 24). Bad inputs get a 400 with a one-line message.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/series` | Half-hourly actuals and the hourly forecast available `lead_hours` before each target (`null` = gap) |
+| `GET /api/metrics` | MAE, RMSE, mean forecast minus actual, error P10/P50/P90, MAE % of mean actual, hours and gaps |
+| `GET /api/metrics/by-lead` | The same metrics for every lead time from 1 to 48 h |
+| `GET /api/metrics/by-hour` | The same metrics for each hour of the day (UTC) |
+| `GET /api/metrics/by-level` | The same metrics for each band of actual generation |
 
 ## Running the tests
 
@@ -31,6 +50,7 @@ python -m pytest
 - **Hourly forecast vs half-hourly actuals.** WINDFOR is hourly and FUELHH is half-hourly. Accuracy metrics compare each forecast only with the actual at the same hour (e.g. the 14:00 forecast with the 14:00–14:30 actual). The :30 actuals are left out of the metrics rather than compared with an interpolated forecast nobody published. The chart still draws every half-hourly actual and draws the forecast as hourly points joined by a line.
 - **Error sign.** Error = forecast − actual, so a positive value means the forecast was higher. The average is reported as "mean forecast minus actual", not as bias, until the coverage and curtailment question is checked.
 - **Gaps in metrics.** Hours with no forecast are counted and reported, but left out of averages.
+- **Same January hours at every lead time.** The brief says "decisions made in January"; we score the same January target hours at every lead so each lead is compared on the same weather, which means early-January targets at long leads use forecasts published on 30–31 Dec.
 - **Past hours in a publish.** Each WINDFOR publish restates a few hours before its publish time. Those rows are dropped; they are not forecasts.
 
 ## Data notes
