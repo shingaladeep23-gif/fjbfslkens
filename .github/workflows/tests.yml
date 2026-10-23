@@ -30,3 +30,16 @@ jobs:
         working-directory: frontend
       - run: npx playwright test
         working-directory: frontend
+
+  # Build both Docker images, start the app, and check the API answers through nginx.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose up --build --detach
+      # Ask for the metrics through nginx on port 8080; retry while the API starts (up to about 30 s).
+      - run: curl --fail --silent --show-error --retry 15 --retry-delay 2 --retry-all-errors http://localhost:8080/api/metrics
+      # If anything failed, print the containers' logs to help find out why.
+      - if: failure()
+        run: docker compose logs
+      - run: docker compose down
