@@ -1,4 +1,5 @@
 # The notebook imports the back end's code and calls its API in the check cell.
 -r ../backend/requirements.txt
-matplotlib>=3.8
-jupyter>=1.0
+# Exact versions the notebook was last run with (Python 3.12).
+matplotlib==3.11.2
+jupyter==1.1.1

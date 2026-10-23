@@ -38,6 +38,8 @@ Open http://localhost:8080. nginx serves the page and passes `/api` on to the Fa
 
 ### Locally, without Docker
 
+Needs Python 3.11 or newer (CI and Docker use 3.12; the pinned pandas 3.1 needs 3.11+) and Node 22.
+
 #### The API
 
 
