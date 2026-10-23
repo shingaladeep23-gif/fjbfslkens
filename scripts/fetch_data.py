@@ -3,7 +3,7 @@
 Usage: python scripts/fetch_data.py
 
 Writes data/actuals.csv (FUELHH, fuelType=WIND) and data/forecasts.csv (WINDFOR).
-All times are UTC.
+All times are UTC. scripts/fetch_december.py reuses these functions for December.
 """
 from pathlib import Path
 
@@ -14,12 +14,19 @@ API = "https://data.elexon.co.uk/bmrs/api/v1/datasets"
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-# Target times we keep: January decisions plus up to 48 h ahead.
-TARGET_FROM = pd.Timestamp("2026-01-01", tz="UTC")
-TARGET_TO = pd.Timestamp("2026-02-04", tz="UTC")  # exclusive
-# Forecasts that could be the "latest available" one for a decision made in January.
-PUBLISH_FROM = "2025-12-30T00:00:00Z"
-PUBLISH_TO = "2026-02-01T00:00:00Z"
+# The dates to download for the January snapshot the app uses.
+JANUARY = {
+    # Target times we keep: January decisions plus up to 48 h ahead (end is exclusive).
+    "target_from": "2026-01-01",
+    "target_to": "2026-02-04",
+    # Settlement dates are UK local dates; in winter they equal UTC dates.
+    # Start a day early so the 00:00 UTC slot on the first day is never cut off.
+    "settlement_from": "2025-12-31",
+    "settlement_to": "2026-02-03",
+    # Forecasts that could be the "latest available" one for a decision in the month.
+    "publish_from": "2025-12-30T00:00:00Z",
+    "publish_to": "2026-02-01T00:00:00Z",
+}
 
 
 # Download one BMRS dataset and return it as a table with UTC timestamps.
@@ -33,17 +40,17 @@ def download(dataset, params):
     return df
 
 
-# Keep only rows whose target time falls inside our analysis window.
-def keep_target_window(df):
-    inside = (df["startTime"] >= TARGET_FROM) & (df["startTime"] < TARGET_TO)
+# Keep only rows whose target time falls inside the window.
+def keep_target_window(df, window):
+    target_from = pd.Timestamp(window["target_from"], tz="UTC")
+    target_to = pd.Timestamp(window["target_to"], tz="UTC")
+    inside = (df["startTime"] >= target_from) & (df["startTime"] < target_to)
     return df[inside]
 
 
 # Download half-hourly wind actuals and keep one value per half-hour.
-def fetch_actuals():
-    # Settlement dates are UK local dates; in January that equals UTC.
-    # Start a day early so the 00:00 UTC slot on 1 Jan is never cut off.
-    params = {"settlementDateFrom": "2025-12-31", "settlementDateTo": "2026-02-03", "fuelType": "WIND"}
+def fetch_actuals(window):
+    params = {"settlementDateFrom": window["settlement_from"], "settlementDateTo": window["settlement_to"], "fuelType": "WIND"}
     df = download("FUELHH", params)
     df = df.dropna(subset=["generation"])
 
@@ -51,14 +58,14 @@ def fetch_actuals():
     df = df.sort_values("publishTime")
     df = df.drop_duplicates(subset="startTime", keep="last")
 
-    df = keep_target_window(df)
+    df = keep_target_window(df, window)
     df = df[["startTime", "generation"]].sort_values("startTime")
     return df.reset_index(drop=True)
 
 
-# Download every wind forecast published around January and clean it.
-def fetch_forecasts():
-    params = {"publishDateTimeFrom": PUBLISH_FROM, "publishDateTimeTo": PUBLISH_TO}
+# Download every wind forecast published in the window and clean it.
+def fetch_forecasts(window):
+    params = {"publishDateTimeFrom": window["publish_from"], "publishDateTimeTo": window["publish_to"]}
     df = download("WINDFOR", params)
     df = df.dropna(subset=["generation"])
     df = df.drop_duplicates(subset=["publishTime", "startTime"], keep="last")
@@ -66,7 +73,7 @@ def fetch_forecasts():
     # Each publish also restates a few past hours; those are not forecasts.
     df = df[df["startTime"] >= df["publishTime"]]
 
-    df = keep_target_window(df)
+    df = keep_target_window(df, window)
     df = df[["publishTime", "startTime", "generation"]].sort_values(["startTime", "publishTime"])
     return df.reset_index(drop=True)
 
@@ -89,13 +96,13 @@ def print_summary(name, df, step):
         print("  first missing:", list(missing[:10]))
 
 
-# Fetch both datasets, save them as CSV and print a summary.
-def main():
-    DATA_DIR.mkdir(exist_ok=True)
-    actuals = fetch_actuals()
-    forecasts = fetch_forecasts()
-    actuals.to_csv(DATA_DIR / "actuals.csv", index=False, date_format=TIME_FORMAT)
-    forecasts.to_csv(DATA_DIR / "forecasts.csv", index=False, date_format=TIME_FORMAT)
+# Fetch both datasets for one window, save them as CSV in the folder and print a summary.
+def save_snapshot(window, folder):
+    folder.mkdir(parents=True, exist_ok=True)
+    actuals = fetch_actuals(window)
+    forecasts = fetch_forecasts(window)
+    actuals.to_csv(folder / "actuals.csv", index=False, date_format=TIME_FORMAT)
+    forecasts.to_csv(folder / "forecasts.csv", index=False, date_format=TIME_FORMAT)
 
     print_summary("actuals (FUELHH WIND)", actuals, "30min")
     print_summary("forecasts (WINDFOR)", forecasts, "1h")
@@ -105,4 +112,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    save_snapshot(JANUARY, DATA_DIR)
