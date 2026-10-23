@@ -46,6 +46,7 @@ def test_metrics_january_default():
     assert body["gaps"] == 0
     assert body["mae"] == 2050.2
     assert body["mean_forecast_minus_actual"] == 1854.2
+    assert body["actual_p10"] == 5608.7         # reliability is included too
 
 
 def test_metrics_with_only_gaps_returns_nulls_not_an_error():
@@ -78,8 +79,3 @@ def test_bad_dates():
     assert "between 2026-01-01 and 2026-02-03" in get_400("/api/series?start=2025-12-01&end=2026-01-02")
     assert "between 2026-01-01 and 2026-02-03" in get_400("/api/metrics/by-lead?start=2026-01-01&end=2026-03-01")
     assert "start" in get_400("/api/metrics?start=2026-13-01")
-
-
-def test_cors_allows_vite_dev_server():
-    response = client.get("/api/metrics", headers={"Origin": "http://localhost:5173"})
-    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"

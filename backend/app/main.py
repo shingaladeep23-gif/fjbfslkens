@@ -5,7 +5,6 @@ from pathlib import Path
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.metrics import (
@@ -13,6 +12,7 @@ from app.metrics import (
     metrics_by_hour_of_day,
     metrics_by_lead_time,
     pair_with_actuals,
+    reliability,
     summary_metrics,
 )
 from app.selection import select_forecasts
@@ -39,13 +39,6 @@ FIRST_DAY = ACTUALS["startTime"].min().date()
 LAST_DAY = ACTUALS["startTime"].max().date()
 
 app = FastAPI(title="Wind forecast monitor")
-
-# Let the Vite dev server, which runs on a different port, call this API from the browser.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET"],
-)
 
 
 # FastAPI answers wrongly typed inputs (e.g. lead_hours=abc) with 422.
@@ -157,12 +150,16 @@ def get_series(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours:
     }
 
 
-# Headline accuracy numbers for one lead time over the date range.
+# Headline numbers for one lead time over the date range: accuracy metrics plus
+# the reliability percentiles (e.g. actual_p10, the output reached 9 hours in 10).
 @app.get("/api/metrics")
 def get_metrics(start: date = DEFAULT_START, end: date = DEFAULT_END, lead_hours: int = DEFAULT_LEAD_HOURS):
     check_dates(start, end)
     check_lead_hours(lead_hours)
-    return dict_to_json(summary_metrics(get_pairs(start, end, lead_hours)))
+    pairs = get_pairs(start, end, lead_hours)
+    result = summary_metrics(pairs)
+    result.update(reliability(pairs))
+    return dict_to_json(result)
 
 
 # Accuracy at every lead time from 1 to 48 h, over the same target hours.
