@@ -18,10 +18,28 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `backend/app/metrics.py` | Accuracy metrics (error = forecast − actual) and breakdowns by lead time, hour and generation level |
 | `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
 | `backend/tests/` | pytest suite |
-| `.github/workflows/tests.yml` | GitHub Actions: runs pytest and the Playwright tests on every push |
+| `.github/workflows/tests.yml` | GitHub Actions on every push: pytest and Playwright, plus a job that builds the Docker images and checks the API through nginx |
+| `docker-compose.yml` | Runs the whole app in two containers: `docker compose up --build` |
+| `backend/Dockerfile`, `backend/Dockerfile.dockerignore` | API image: Python slim, the app code and the January data, uvicorn with 4 workers |
+| `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/.dockerignore` | Page image: built with Node, served by nginx, which passes `/api` on to the API |
 | `frontend/` | React page (Vite, plain JavaScript, Recharts): `src/App.jsx` loads the data, `src/components/` has one file per part of the page, `src/styles.css` is the only stylesheet, `e2e/` holds the Playwright tests (one file per theme: load, controls, charts, failures, layout; shared helpers in `helpers.js`) |
 
-## Running the API locally
+## How to start
+
+### With Docker (recommended)
+
+Needs only Docker. From the repo root:
+
+```
+docker compose up --build
+```
+
+Open http://localhost:8080. nginx serves the page and passes `/api` on to the FastAPI container, so it's one site, just like in development and production. The first build takes about a minute and a half; stop with `Ctrl+C`, or `docker compose down`.
+
+### Locally, without Docker
+
+#### The API
+
 
 ```
 cd backend
@@ -39,7 +57,7 @@ Interactive docs: http://127.0.0.1:8000/docs. All endpoints take `start` and `en
 | `GET /api/metrics/by-hour` | The same metrics for each hour of the day (UTC) |
 | `GET /api/metrics/by-level` | The same metrics for each band of actual generation |
 
-## Running the front end locally
+#### The front end
 
 Start the API first (see above, port 8000), then in a second terminal:
 
@@ -70,7 +88,14 @@ npx playwright install chromium
 npx playwright test
 ```
 
-Both sets run on every push in GitHub Actions (`.github/workflows/tests.yml`).
+To run the same browser tests against an app that is already running (for example the Docker one), point them at it; Playwright then starts no servers of its own:
+
+```
+cd frontend
+BASE_URL=http://localhost:8080 npx playwright test
+```
+
+Both sets run on every push in GitHub Actions (`.github/workflows/tests.yml`), along with a job that builds the Docker images and checks the API through nginx.
 
 ## Findings
 
