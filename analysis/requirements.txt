@@ -1,0 +1,4 @@
+# The notebook imports the back end's code and calls its API in the check cell.
+-r ../backend/requirements.txt
+matplotlib>=3.8
+jupyter>=1.0
