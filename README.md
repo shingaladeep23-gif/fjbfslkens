@@ -9,8 +9,11 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | Path | What it is |
 |---|---|
 | `scripts/fetch_data.py` | Refreshes the snapshot in `data/` from the BMRS API |
+| `scripts/fetch_december.py` | Downloads December 2025 into `analysis/data/december/` (same cleaning), used only by the notebook |
 | `data/actuals.csv` | FUELHH wind outturn, half-hourly, 1 Jan – 3 Feb 2026 |
 | `data/forecasts.csv` | WINDFOR forecasts published 30 Dec 2025 – 31 Jan 2026 |
+| `analysis/wind_forecast_analysis.ipynb` | The analysis behind the findings below, saved with its outputs so it reads on GitHub |
+| `analysis/data/december/` | December 2025 actuals and forecasts, kept out of `data/` so the app stays January-only |
 | `backend/app/selection.py` | The rule that picks the forecast available at decision time |
 | `backend/app/metrics.py` | Accuracy metrics (error = forecast − actual) and breakdowns by lead time, hour and generation level |
 | `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
@@ -68,6 +71,17 @@ npx playwright test
 ```
 
 Both sets run on every push in GitHub Actions (`.github/workflows/tests.yml`).
+
+## Findings
+
+Full analysis, with charts and the code behind every number: [`analysis/wind_forecast_analysis.ipynb`](analysis/wind_forecast_analysis.ipynb). Its numbers match the app's for the same settings; a check cell compares them.
+
+- **Accuracy fades slowly with lead time.** The typical miss (MAE) is 1,801 MW one hour ahead, 2,050 MW a day ahead and 2,380 MW two days ahead (16%, 18% and 21% of average output). It worsens fastest between 24 and 36 hours ahead.
+- **Most of the miss is a steady offset.** The forecast is about 1.6–2.0 GW above measured output at every lead time, even one hour ahead, and the gap grows with wind. Output never went above 17.8 GW in January, while the forecast often did. This is consistent with curtailment or a difference in which wind farms each dataset covers; it is not proven.
+- **A simple correction helps, tested honestly.** Subtracting the average offset learned from December 2025 alone cuts January's day-ahead typical miss from 2,050 MW to 1,343 MW (−35%).
+- **What a buyer can count on.** Learned from December: count on about 73% of the day-ahead forecast. In January, output reached that level in 89% of hours, close to the 9-in-10 target, though less reliably when the forecast is very low or very high.
+
+To rerun the notebook: `pip install -r analysis/requirements.txt`, then open it from the `analysis/` folder and run all cells.
 
 ## Assumptions
 
