@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BreakdownCharts from "./components/BreakdownCharts.jsx";
 import Controls from "./components/Controls.jsx";
 import HeadlineCards from "./components/HeadlineCards.jsx";
@@ -29,24 +29,41 @@ async function fetchJson(url) {
   return body;
 }
 
-// Load one API URL and load it again whenever the URL changes.
+// Load one API URL, and load it again when the URL changes, or when any control changes
+// (changeCount goes up) while the last attempt had failed - so a failed part recovers by itself.
 // Returns { data, error, loading }. The previous data stays on screen while new data loads.
-function useApi(url) {
+function useApi(url, changeCount) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // The URL whose answer is on screen and arrived without an error.
+  const lastGoodUrl = useRef(null);
 
   useEffect(() => {
+    // Same URL as the answer already on screen: nothing to fetch (e.g. by-lead when the slider moves).
+    if (url === lastGoodUrl.current) {
+      return;
+    }
     // If the URL changes before this request finishes, its answer is ignored.
     let ignore = false;
     setLoading(true);
     setError(null);
     fetchJson(url)
-      .then((body) => { if (!ignore) setData(body); })
-      .catch((err) => { if (!ignore) setError(err.message); })
+      .then((body) => {
+        if (!ignore) {
+          setData(body);
+          lastGoodUrl.current = url;
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setError(err.message);
+          lastGoodUrl.current = null;
+        }
+      })
       .finally(() => { if (!ignore) setLoading(false); });
     return () => { ignore = true; };
-  }, [url]);
+  }, [url, changeCount]);
 
   return { data, error, loading };
 }
@@ -56,14 +73,30 @@ export default function App() {
   const [start, setStart] = useState("2026-01-01");
   const [end, setEnd] = useState("2026-01-31");
   const [leadHours, setLeadHours] = useState(24);
+  // Goes up by one every time the user changes a control; lets failed requests retry.
+  const [changeCount, setChangeCount] = useState(0);
+
+  // Each control change updates its value and counts as a change.
+  function changeStart(value) {
+    setStart(value);
+    setChangeCount(changeCount + 1);
+  }
+  function changeEnd(value) {
+    setEnd(value);
+    setChangeCount(changeCount + 1);
+  }
+  function changeLeadHours(value) {
+    setLeadHours(value);
+    setChangeCount(changeCount + 1);
+  }
 
   const range = `start=${start}&end=${end}`;
   const rangeAndLead = `${range}&lead_hours=${leadHours}`;
-  const series = useApi(`/api/series?${rangeAndLead}`);
-  const metrics = useApi(`/api/metrics?${rangeAndLead}`);
-  const byLead = useApi(`/api/metrics/by-lead?${range}`); // does not depend on the slider
-  const byHour = useApi(`/api/metrics/by-hour?${rangeAndLead}`);
-  const byLevel = useApi(`/api/metrics/by-level?${rangeAndLead}`);
+  const series = useApi(`/api/series?${rangeAndLead}`, changeCount);
+  const metrics = useApi(`/api/metrics?${rangeAndLead}`, changeCount);
+  const byLead = useApi(`/api/metrics/by-lead?${range}`, changeCount); // does not depend on the slider
+  const byHour = useApi(`/api/metrics/by-hour?${rangeAndLead}`, changeCount);
+  const byLevel = useApi(`/api/metrics/by-level?${rangeAndLead}`, changeCount);
 
   const requests = [series, metrics, byLead, byHour, byLevel];
   const loading = requests.some((request) => request.loading);
@@ -86,9 +119,9 @@ export default function App() {
         leadHours={leadHours}
         firstDay={FIRST_DAY}
         lastDay={LAST_DAY}
-        onStartChange={setStart}
-        onEndChange={setEnd}
-        onLeadHoursChange={setLeadHours}
+        onStartChange={changeStart}
+        onEndChange={changeEnd}
+        onLeadHoursChange={changeLeadHours}
       />
 
       <p className="status" aria-live="polite">{loading ? "Loading…" : ""}</p>
