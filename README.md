@@ -47,7 +47,7 @@ pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
-Interactive docs: http://127.0.0.1:8000/docs. All endpoints take `start` and `end` as dates (`YYYY-MM-DD`, whole UTC days, both included, default 1–31 Jan 2026). Where it applies, they also take `lead_hours` (1–48, default 24). Bad inputs get a 400 with a one-line message.
+Interactive docs: http://127.0.0.1:8000/docs. All endpoints take `start` and `end` as dates (`YYYY-MM-DD`, whole UTC days, both included, default 1–31 Jan 2026). Where it applies, they also take `lead_hours` (1–48, default 24) and `mode`: `lead` (default, decide `lead_hours` before each hour) or `auction` (decide every hour of a day at 09:50 the day before; `lead_hours` is then ignored). Bad inputs get a 400 with a one-line message.
 
 | Endpoint | Returns |
 |---|---|
@@ -113,6 +113,7 @@ To rerun the notebook: `pip install -r analysis/requirements.txt`, then open it 
 - **Time zone.** Everything is UTC. In January, UK local time equals UTC.
 - **Forecast available at decision time.** For target time T and lead time H, use the forecast with the latest `publishTime ≤ T − H` among forecasts for T. If none exists, the slot is a gap. A gap is never filled with a later forecast, because that would use information the buyer did not have.
 - **Default lead time: 24 h.** Nord Pool's N2EX GB day-ahead auction closes at 09:50 UK time the day before delivery ([Nord Pool](https://support.nordpoolgroup.com/support/solutions/articles/8000088463-about-the-day-ahead-gb-auction)). The next day's hours are then about 14–38 h after that decision, so 24 h is close to the middle. Buyers may also trade in other auctions or at other times, so the slider covers 1–48 h.
+- **Day-ahead auction mode.** The page can also pick forecasts the way a day-ahead buyer actually decides: every hour of day D uses the latest forecast published by **09:50 on day D−1**, when Nord Pool's N2EX GB day-ahead auction closes. Only the decision time changes; the rule (latest `publishTime ≤ decision time`) is the same. January is GMT, so 09:50 UK time is 09:50 UTC. In summer (BST, UTC+1) the auction would close at 08:50 UTC, and days would start at UK midnight (23:00 UTC), so the code would need a UK time zone conversion.
 - **Hourly forecast vs half-hourly actuals.** WINDFOR is hourly and FUELHH is half-hourly. Accuracy metrics compare each forecast only with the actual at the same hour (e.g. the 14:00 forecast with the 14:00–14:30 actual). The :30 actuals are left out of the metrics rather than compared with an interpolated forecast nobody published. The chart still draws every half-hourly actual and draws the forecast as hourly points joined by a line.
 - **Error sign.** Error = forecast − actual, so a positive value means the forecast was higher. The average is reported as "mean forecast minus actual", not as bias, until the coverage and curtailment question is checked.
 - **Gaps in metrics.** Hours with no forecast are counted and reported, but left out of averages.
