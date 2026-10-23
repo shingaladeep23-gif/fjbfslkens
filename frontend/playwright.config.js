@@ -9,7 +9,8 @@ const baseURL = process.env.BASE_URL || "http://localhost:5173";
 // The two local servers to start when BASE_URL is not set.
 const localServers = [
   {
-    command: "python -m uvicorn app.main:app --port 8000",
+    // 4 worker processes, the same as the Docker image: one process queues the suite's CPU-heavy requests.
+    command: "python -m uvicorn app.main:app --port 8000 --workers 4",
     cwd: "../backend",
     url: "http://localhost:8000/api/metrics",
     reuseExistingServer: !process.env.CI, // locally, reuse servers you already have running
