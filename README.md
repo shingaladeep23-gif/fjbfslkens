@@ -15,6 +15,7 @@ Shows the national wind generation forecast a GB day-ahead buyer could actually 
 | `backend/app/metrics.py` | Accuracy metrics (error = forecast − actual) and breakdowns by lead time, hour and generation level |
 | `backend/app/main.py` | FastAPI app: loads the CSVs once and serves the `/api/...` endpoints |
 | `backend/tests/` | pytest suite |
+| `.github/workflows/tests.yml` | GitHub Actions: runs pytest and the Playwright tests on every push |
 | `frontend/` | React page (Vite, plain JavaScript, Recharts): `src/App.jsx` loads the data, `src/components/` has one file per part of the page, `src/styles.css` is the only stylesheet, `e2e/` holds the Playwright tests |
 
 ## Running the API locally
@@ -65,6 +66,8 @@ npm install
 npx playwright install chromium
 npx playwright test
 ```
+
+Both sets run on every push in GitHub Actions (`.github/workflows/tests.yml`).
 
 ## Assumptions
 

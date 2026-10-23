@@ -1,0 +1,32 @@
+# Run every test on every push: the back-end unit tests, then the end-to-end browser tests.
+name: tests
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Get the code, then install the two languages the app uses.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # Back end: install the Python libraries and run pytest.
+      - run: pip install -r requirements.txt
+        working-directory: backend
+      - run: python -m pytest
+        working-directory: backend
+
+      # Front end: install exactly the locked packages and Chromium, then run Playwright.
+      # Playwright starts the API and the Vite dev server itself (see frontend/playwright.config.js).
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend
