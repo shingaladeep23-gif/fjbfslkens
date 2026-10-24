@@ -36,10 +36,14 @@ test("API back after failing: the next control change recovers every section wit
   await expect(leadChart.locator(".recharts-wrapper")).toBeVisible();
 });
 
-test("slow lead-time chart (5 s): the rest of the page is usable meanwhile", async ({ page, request }) => {
+test("slow lead-time chart: the rest of the page is usable while it waits", async ({ page, request }) => {
   await page.goto("/"); // load once first, so the reload below is quick even on a cold CI machine
+  // Hold the lead-time chart's answer until the rest of the page has been checked, however long
+  // that takes on this machine, then let it through.
+  let releaseByLead;
+  const byLeadHeld = new Promise((resolve) => { releaseByLead = resolve; });
   await page.route((url) => url.pathname === "/api/metrics/by-lead", async (route) => {
-    await wait(5000);
+    await byLeadHeld;
     await route.continue();
   });
   await page.reload();
@@ -52,7 +56,8 @@ test("slow lead-time chart (5 s): the rest of the page is usable meanwhile", asy
   // All of the above happened while the lead-time chart was still waiting for its answer.
   const leadChart = page.locator("section", { has: page.getByRole("heading", { name: "How accuracy changes with lead time" }) });
   await expect(leadChart).toContainText("Loading…");
-  await expect(leadChart.locator(".recharts-wrapper")).toBeVisible({ timeout: 10000 });
+  releaseByLead();
+  await expect(leadChart.locator(".recharts-wrapper")).toBeVisible();
 });
 
 test("a slow request is not restarted when another control changes", async ({ page }) => {
